@@ -1,0 +1,11 @@
+{
+  "name": "gamlearn-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-hosted static GamLEARN website (gamlearn.org.uk) with no third-party site-builder dependencies.",
+  "type": "module",
+  "scripts": {
+    "start": "node tools/scripts/serve.mjs",
+    "serve": "node tools/scripts/serve.mjs"
+  }
+}

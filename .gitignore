@@ -1,0 +1,10 @@
+# Intermediate raw HTML captured from the live site (regenerable; kept out of the repo to save space)
+/raw/
+
+# Tooling build artifacts
+/tools/scripts/*.json
+
+# Logs / scratch
+*.log
+.DS_Store
+node_modules/
