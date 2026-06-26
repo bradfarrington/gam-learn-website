@@ -33,7 +33,7 @@ async function tryFiles(pathname) {
   return null;
 }
 
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   let fp = await tryFiles(pathname);
   let status = 200;
@@ -60,4 +60,22 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(500); res.end('500');
   }
-}).listen(PORT, () => console.log(`Serving site/ at http://localhost:${PORT}`));
+});
+
+// Start on PORT; if it's taken, try the next few ports instead of crashing.
+function start(port, attemptsLeft = 10) {
+  server.once('error', (err) => {
+    if (err.code === 'EADDRINUSE' && attemptsLeft > 0) {
+      console.log(`Port ${port} is in use — trying ${port + 1}…`);
+      start(port + 1, attemptsLeft - 1);
+    } else if (err.code === 'EADDRINUSE') {
+      console.error(`\nCould not find a free port near ${PORT}. The site may already be running —\n` +
+        `open http://localhost:${PORT} in your browser, or run:  PORT=5000 npm start\n`);
+      process.exit(1);
+    } else {
+      throw err;
+    }
+  });
+  server.listen(port, () => console.log(`Serving the site at http://localhost:${port}`));
+}
+start(Number(PORT));
