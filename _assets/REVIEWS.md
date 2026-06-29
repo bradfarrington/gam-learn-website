@@ -10,38 +10,57 @@ renders a branded carousel. No review dates are shown.
 
 ---
 
-## Adding the section to a page
+## Per-page wiring (automatic, by URL path)
 
-Drop a single element where the section should appear:
+Each public page shows **its own** reviews, filtered by category slug. Rather
+than editing the large Framer-exported HTML bodies, the pages are wired inside
+`reviews.js` by path (see `PATH_CONFIG`):
+
+| Path                          | Category slug(s)                          | Section |
+| ----------------------------- | ----------------------------------------- | ------- |
+| `/`  (homepage)               | `cjs`, `impacted-others`, `research-leaf` | existing Framer "Voices of Support" block — lived-experience mix (everything **except** training) |
+| `/professional-training`      | `professional-training`                   | injected above the CTA banner |
+| `/criminal-justice-support`   | `cjs`                                      | injected above the CTA banner |
+| `/impacted-others`            | `impacted-others`                         | injected above the CTA banner |
+| `/research`                   | `research-leaf` (Research **&** LEAF)     | injected above the CTA banner |
+
+On `create:true` pages the script injects one section just **above the
+`CTA Section`** ("Together, We Can Make a Difference") banner. The injected
+section mirrors the homepage structure exactly: **pill badge → heading →
+intro → carousel**, on the same (transparent/white) background.
+
+### Adding the section to another page
+
+Either add an entry to `PATH_CONFIG` in `reviews.js`, or drop a mount element
+manually where it should appear:
 
 ```html
-<!-- All published reviews -->
-<div data-gl-reviews></div>
+<!-- One category, with its own heading block -->
+<div data-gl-reviews
+     data-category="membership"
+     data-heading="What our members say"
+     data-intro="Real words from people we’ve walked alongside."></div>
 
-<!-- Only reviews in one category (by slug) -->
-<div data-gl-reviews data-category="research"></div>
+<!-- Several categories at once (deduped) -->
+<div data-gl-reviews data-category="cjs,impacted-others,research-leaf"></div>
 ```
 
 Optional attributes:
 
 | Attribute       | Purpose                                                            |
 | --------------- | ----------------------------------------------------------------- |
-| `data-category` | Show only reviews linked to this **category slug** (see below).   |
-| `data-heading`  | Render a heading above the carousel (e.g. on a page with no title).|
-| `data-intro`    | Render an intro paragraph under the heading.                       |
+| `data-category` | Category **slug**, or a comma-separated list of slugs.            |
+| `data-heading`  | Heading above the carousel. Triggers the pill + heading block.    |
+| `data-intro`    | Intro paragraph under the heading.                                 |
+| `data-pill`     | Pill label (default `Voices of Support`).                         |
 | `data-limit`    | Cap the number of reviews requested.                              |
 
-On the homepage the mount sits **inside the existing "Voices of Support"
-heading block**, so it deliberately has no `data-heading`/`data-intro` — the
-Framer heading already sits above it. On a fresh page with no heading of its
-own, add them:
+A reusable fetch helper is also exposed: `window.glReviews.getReviewsBySlug(slug, limit)`
+(`slug` may be a string or an array; returns published reviews, deduped).
 
-```html
-<div data-gl-reviews
-     data-category="membership"
-     data-heading="What our members say"
-     data-intro="Real words from people we’ve walked alongside."></div>
-```
+> **Cache note:** `reviews.js` is referenced as `/_assets/reviews.js?v=N` and is
+> served `immutable` for a year. **Bump `N` in every HTML file** whenever you
+> edit `reviews.js`, or returning visitors keep the cached version. Current: `v3`.
 
 ---
 
@@ -85,6 +104,16 @@ on conflict do nothing;
 > page filtered to a specific slug until they're linked.
 
 ---
+
+## Display rules
+
+- **Rating** may be `NULL` — stars render **only** when a 1–5 rating is set
+  (training reviews are 5★; most CJS/Impacted/Research quotes have none).
+- **Name** of `Anonymous` (any case) or blank renders **no** avatar / name line —
+  just the quote.
+- **Body** is plain text; quote styling is added by the component.
+- **Order**: `sort_order` DESC, then `review_date` DESC (nulls last). Dates are
+  used for ordering only and are never displayed.
 
 ## How auto-updating works
 

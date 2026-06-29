@@ -44,25 +44,31 @@
   var BRAND_PURPLE =
     "var(--token-78d77a8e-a6d1-46a2-b298-d1a12220fc6e, #4b0082)";
 
+  // The little "pill" badge that sits above the heading (icon + label),
+  // mirroring the homepage "Voices of Support" section. The diamond icon and
+  // its light-green circle reuse the same asset / brand colour as the homepage.
+  var PILL_ICON = "/_assets/fu/images/q14stl_PF2dbStqm5QKC5yGdJiRGRr68.png";
+  var PILL_ICON_BG =
+    "var(--token-786948c5-9c7f-4fde-87b4-2cb93647bf2f, rgb(201, 242, 227))";
+  var DEFAULT_PILL = "Voices of Support";
+
   // Default copy (overridable per mount via data-heading / data-intro).
   var DEFAULT_HEADING = "Hear from those whose lives we’ve impacted";
   var DEFAULT_INTRO =
     "Every story shared reminds us why we do what we do. From individuals to " +
     "partners, our community’s trust and feedback drive us to keep creating change.";
 
-  // Offline / network-failure fallback so the section always looks complete.
-  // Mirrors the published reviews currently in the CRM (no dates).
+  // Offline / network-failure fallback so the homepage section always looks
+  // complete. These mirror a cross-section of the live lived-experience reviews
+  // (Criminal Justice Support / Impacted Others) — no star ratings, since the
+  // quotes were supplied without them. Only used if the database is unreachable.
   var FALLBACK_REVIEWS = [
-    { reviewer_name: "Amy", rating: 5, body: "I am grateful to be given the opportunity to go on this course, because not only did I learn about gambling/gambling addiction, but also the seriousness of it – the vicious circle people can get into, the consequence on family and friends, and the risks of losing everything (including life)." },
-    { reviewer_name: "Rhian", rating: 5, body: "I will take forward the learning and use it to work with strategic partners to ensure gambling is addressed more in CJS." },
-    { reviewer_name: "Lorna", rating: 5, body: "The explanations of how the brain is changed to create addiction was fascinating and gives real insight into how gambling can affect anyone. The lived experience stories are impactful and to understand the impact we can have at PSR stage is invaluable." },
-    { reviewer_name: "Danielle", rating: 5, body: "This was the best training I have had. The facilitators were fantastic and interactive. Their lived experience was invaluable and really made the training stand out. The videos and statistics were really interesting." },
-    { reviewer_name: "NG", rating: 5, body: "The lived experience is very interesting, I think it’s important to hear from people who have experienced the issue themselves. Videos were great to watch – person touch to the topic and not just purely stats and data." },
-    { reviewer_name: "Danielle", rating: 5, body: "There are limited services within our local area for gambling support and thanks to the training we have more services available that are available to help people." },
-    { reviewer_name: "Marcus", rating: 5, body: "The course has everything in terms of pitching the learning. I recommend that this needs to be right in the middle of the table for involvement at all levels of our HMPPS structure.\n\nA policy change to align gambling harms with other established addictions is the next step." },
-    { reviewer_name: "Molly Delahay", rating: 5, body: "I am far more aware of how to approach people who suffer with gambling addiction and know the support networks available." },
-    { reviewer_name: "Sadie", rating: 5, body: "I really enjoyed having the visual of the presentation but also having the booklet with the slides in and a space to make notes. I also really enjoyed the shared lived experiences both in video format and also experiences shared from the facilitators." },
-    { reviewer_name: "Sarah", rating: 5, body: "I liked that it was interactive and questions were allowed throughout. The PowerPoint was very informative and had varied context.\n\nI feel confident in my understanding but also the process as well as the guidance to better help support an individual." }
+    { reviewer_name: "Christine", rating: null, body: "GamLEARN saved my life." },
+    { reviewer_name: "Anonymous", rating: null, body: "No longer feel terrified and hopeless. Realise I’m not alone. Surrounded by people who get it and don’t judge. It’s made me able to carry on. Literally a life saver." },
+    { reviewer_name: "Jen", rating: null, body: "Throughout my recovery GamLEARN has provided guidance and support enabling me to put one foot in front of the other and achieve what at the beginning I believed to be unimaginable. When your world fall apart you think there is no hope and no future but here, I am still standing… stronger, clearer and most importantly bet free. I feel more able to cope with the next steps with the support of friends I’ve met through the group, and I am no longer alone." },
+    { reviewer_name: "Anonymous", rating: null, body: "A huge difference. I don’t know if I could have navigated my situation without the support I received. The support, especially the calls were my lifeline." },
+    { reviewer_name: "Leanne", rating: null, body: "GamLEARN have been my strength throughout my recovery! They were there for me without judgement when I hit my rock bottom!" },
+    { reviewer_name: "Anonymous", rating: null, body: "The biggest thing is not feeling alone. Just to know you’re not alone and have the chance to communicate with others in the same situation And Tracy has always been able to fully understand all of the emotions I have felt as she has lived experience of addiction and gambling related crime." }
   ];
 
   // --- Helpers ---------------------------------------------------------------
@@ -79,6 +85,19 @@
     if (!parts.length) return "?";
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  }
+
+  // A real, displayable name? "Anonymous" (any case) and blanks count as no name,
+  // so those cards render the quote with no avatar / name line.
+  function hasName(name) {
+    var n = String(name == null ? "" : name).trim();
+    return !!n && n.toLowerCase() !== "anonymous";
+  }
+
+  // Only show stars when an actual 1–5 rating was supplied. Many newer reviews
+  // (CJS / Impacted Others / Research) have no rating — those show no stars.
+  function validRating(rating) {
+    return typeof rating === "number" && rating >= 1;
   }
 
   function starsSvg(rating) {
@@ -106,8 +125,32 @@
     var css =
       ".glr-section{--glr-green:" + BRAND_GREEN + ";--glr-purple:" + BRAND_PURPLE + ";" +
         "--glr-ink:#0c0c0c;--glr-muted:#5a5a5a;--glr-card:#fff;--glr-line:rgba(12,12,12,.08);" +
+        // Match the rest of the site: Urbanist is the site's typeface.
+        "font-family:\"Urbanist\",\"Urbanist Placeholder\",sans-serif;" +
         "width:100%;box-sizing:border-box;}" +
       ".glr-section *,.glr-section *::before,.glr-section *::after{box-sizing:border-box;}" +
+
+      /* Injected page section (sub-pages): provides the padding/width that the
+         homepage gets from its surrounding Framer layout. Background is left
+         transparent so every reviews section sits on the same page background
+         as the homepage one. */
+      ".glr-page-section{width:100%;box-sizing:border-box;padding:96px 20px;background:transparent;}" +
+      ".glr-page-section .glr-section{max-width:1200px;margin:0 auto;}" +
+
+      /* Section head: pill badge + heading + intro, mirroring the homepage
+         "Voices of Support" block. Heading/intro match the site's section-title
+         styling (Urbanist 42/700, body 18/400). */
+      ".glr-head{text-align:center;max-width:760px;margin:0 auto 44px;}" +
+      ".glr-pill{display:inline-flex;align-items:center;gap:10px;margin:0 0 22px;" +
+        "padding:6px 18px 6px 6px;border-radius:100px;background:#fff;" +
+        "border:1px solid var(--glr-line);box-shadow:0 1px 2px rgba(12,12,12,.05);}" +
+      ".glr-pill-ic{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:inline-flex;" +
+        "align-items:center;justify-content:center;background:" + PILL_ICON_BG + ";}" +
+      ".glr-pill-ic img{width:19px;height:19px;display:block;object-fit:contain;}" +
+      ".glr-pill-tx{font-weight:600;font-size:15px;color:var(--glr-ink);letter-spacing:.1px;}" +
+      ".glr-heading{margin:0 0 16px;font-weight:700;line-height:1.2;color:var(--glr-ink);" +
+        "letter-spacing:-.03em;font-size:clamp(28px,3.6vw,42px);}" +
+      ".glr-intro{margin:0 auto;color:var(--glr-muted);font-weight:400;font-size:18px;line-height:1.7;}" +
 
       /* Track */
       ".glr-viewport{position:relative;}" +
@@ -195,18 +238,25 @@
     var card = document.createElement("div");
     card.className = "glr-card";
 
+    // Stars only when a rating exists; author block only when there's a real
+    // name (anonymous quotes show neither).
+    var starsHtml = validRating(review.rating) ? starsSvg(review.rating) : "";
+    var authorHtml = hasName(review.reviewer_name)
+      ? '<div class="glr-author">' +
+          '<span class="glr-avatar" aria-hidden="true">' + esc(initials(review.reviewer_name)) + "</span>" +
+          '<span class="glr-name">' + esc(review.reviewer_name) + "</span>" +
+        "</div>"
+      : "";
+
     // Render clamped with the button hidden; applyClamps() measures real
     // overflow after layout and only reveals "Read more" when text is actually
     // cut off — so the button never appears on a review that already fits.
     card.innerHTML =
       '<span class="glr-quote" aria-hidden="true">“</span>' +
-      starsSvg(review.rating) +
+      starsHtml +
       '<p class="glr-body is-clamped">' + esc(review.body) + "</p>" +
       '<button type="button" class="glr-more" style="display:none">Read more</button>' +
-      '<div class="glr-author">' +
-        '<span class="glr-avatar" aria-hidden="true">' + esc(initials(review.reviewer_name)) + "</span>" +
-        '<span class="glr-name">' + esc(review.reviewer_name) + "</span>" +
-      "</div>";
+      authorHtml;
 
     // The "Read more" toggle is handled by a single delegated listener (see
     // installReadMore) so it keeps working even after Framer hydration re-paints
@@ -430,13 +480,22 @@
   }
 
   // --- Data ------------------------------------------------------------------
-  function buildQuery(category, limit) {
-    var select = "reviewer_name,rating,body,sort_order";
-    var params = ["is_published=eq.true", "order=sort_order.asc"];
-    if (category) {
+  // Fetch published reviews for one or more category slugs. Ordered by
+  // sort_order DESC, then review_date DESC (nulls last) — the stable ordering
+  // contract agreed with the CRM. Dates are used only for ordering, never shown.
+  function buildQuery(categories, limit) {
+    var select = "id,reviewer_name,rating,body,review_date,sort_order";
+    var params = [
+      "is_published=eq.true",
+      "order=sort_order.desc,review_date.desc.nullslast",
+    ];
+    if (categories && categories.length) {
       select += ",review_category_links!inner(review_categories!inner(slug))";
+      // Filter by category SLUG (the stable contract). One or many via in.(...).
       params.push(
-        "review_category_links.review_categories.slug=eq." + encodeURIComponent(category)
+        "review_category_links.review_categories.slug=in.(" +
+          categories.map(encodeURIComponent).join(",") +
+          ")"
       );
     }
     if (limit) params.push("limit=" + parseInt(limit, 10));
@@ -444,17 +503,148 @@
     return REST + "?" + params.join("&");
   }
 
-  function fetchReviews(category, limit) {
-    return fetch(buildQuery(category, limit), {
+  // Reusable helper: published reviews for a category slug (or array of slugs).
+  // Exposed on window for ad-hoc use; the carousel mounts use it internally.
+  function getReviewsBySlug(slug, limit) {
+    var categories = Array.isArray(slug) ? slug : slug ? [slug] : [];
+    return fetch(buildQuery(categories, limit), {
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: "Bearer " + SUPABASE_ANON_KEY,
         Accept: "application/json",
       },
-    }).then(function (res) {
-      if (!res.ok) throw new Error("reviews HTTP " + res.status);
-      return res.json();
-    });
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("reviews HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (rows) {
+        if (!Array.isArray(rows)) return rows;
+        // A review linked to several of the requested categories comes back once
+        // per link — de-duplicate by id, preserving order.
+        var seen = {};
+        return rows.filter(function (r) {
+          if (r && r.id != null) {
+            if (seen[r.id]) return false;
+            seen[r.id] = 1;
+          }
+          return true;
+        });
+      });
+  }
+
+  // --- Per-page wiring -------------------------------------------------------
+  // Each public page shows its own reviews, filtered by category slug. Rather
+  // than editing every (Framer-exported) HTML body, we wire pages here by path:
+  //
+  //   create:true  -> this page has no mount in its HTML, so inject one just
+  //                   above the footer, with a heading/intro.
+  //   (no create)  -> the page already has a <div data-gl-reviews> mount (the
+  //                   homepage), we just supply its categories here.
+  //   fallback:true-> if the DB is unreachable, show bundled FALLBACK_REVIEWS
+  //                   instead of hiding (homepage only).
+  var PATH_CONFIG = {
+    // Homepage: the existing "Hear from those whose lives we've impacted"
+    // section becomes a lived-experience showcase — everything EXCEPT training.
+    "/": {
+      categories: ["cjs", "impacted-others", "research-leaf"],
+      fallback: true,
+    },
+    "/professional-training": {
+      categories: ["professional-training"],
+      create: true,
+      heading: "What training participants say",
+      intro:
+        "Feedback from the professionals who have completed our gambling-related harm training.",
+    },
+    "/criminal-justice-support": {
+      categories: ["cjs"],
+      create: true,
+      heading: "Voices from our criminal justice support",
+      intro:
+        "From the people we have stood beside throughout the criminal justice process.",
+    },
+    "/impacted-others": {
+      categories: ["impacted-others"],
+      create: true,
+      heading: "From the families and friends we support",
+      intro: "Words from affected others who found support through GamLEARN.",
+    },
+    "/research": {
+      categories: ["research-leaf"],
+      create: true,
+      heading: "What our research community says",
+      intro:
+        "Reflections from those involved in our research and LEAF programmes.",
+    },
+  };
+
+  // Normalise the current path to match PATH_CONFIG keys: lowercase, drop any
+  // ".html" and trailing slash (the live site uses clean URLs).
+  function currentPath() {
+    var p = (location.pathname || "/").toLowerCase().replace(/\.html$/, "");
+    if (p.length > 1) p = p.replace(/\/+$/, "");
+    p = p.replace(/\/index$/, ""); // /index -> homepage
+    return p || "/";
+  }
+
+  function pageConfig() {
+    return PATH_CONFIG[currentPath()] || null;
+  }
+
+  // Resolve the categories + fallback behaviour for a given mount: an explicit
+  // data-category attribute always wins; otherwise fall back to the page config.
+  function mountConfig(mount) {
+    var attr = mount.getAttribute("data-category");
+    if (attr) {
+      return {
+        categories: attr.split(",").map(function (s) { return s.trim(); }).filter(Boolean),
+        fallback: false,
+      };
+    }
+    var cfg = pageConfig();
+    if (cfg) return { categories: cfg.categories || [], fallback: !!cfg.fallback };
+    return { categories: [], fallback: true }; // truly unfiltered mount
+  }
+
+  // Cache fetched rows per category-key at module scope, so an injected mount
+  // that Framer hydration removes and we re-create doesn't refetch every time.
+  var DATA_CACHE = {};
+  function cacheKey(categories) {
+    return categories && categories.length ? categories.slice().sort().join(",") : "*";
+  }
+
+  // On pages configured with create:true, inject a single mount above the footer
+  // if one isn't already present. Idempotent and safe to call repeatedly (the
+  // observer re-runs it if hydration removes our node).
+  function ensurePageMount() {
+    var cfg = pageConfig();
+    if (!cfg || !cfg.create) return;
+    if (document.querySelector("[data-gl-reviews]")) return;
+
+    var mount = document.createElement("div");
+    mount.setAttribute("data-gl-reviews", "");
+    mount.setAttribute("data-category", (cfg.categories || []).join(","));
+    if (cfg.heading) mount.setAttribute("data-heading", cfg.heading);
+    if (cfg.intro) mount.setAttribute("data-intro", cfg.intro);
+
+    var section = document.createElement("section");
+    section.className = "glr-page-section";
+    section.setAttribute("data-glr-injected", "1");
+    section.appendChild(mount);
+
+    // Sit the section above the "CTA Section" banner (the green
+    // "Together, We Can Make a Difference" block) where present, else above
+    // the footer.
+    var anchor =
+      document.querySelector('[data-glearn-name="CTA Section"]') ||
+      document.querySelector('[data-glearn-name="Footer Section"]') ||
+      document.querySelector("footer");
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(section, anchor);
+    } else {
+      (document.querySelector("[data-glearn-root]") || document.body).appendChild(section);
+    }
   }
 
   // --- Mount lifecycle -------------------------------------------------------
@@ -474,12 +664,19 @@
     mount.classList.add("glr-section");
     var heading = mount.getAttribute("data-heading");
     var intro = mount.getAttribute("data-intro");
+    var pill = mount.getAttribute("data-pill") || DEFAULT_PILL;
     var headHtml = "";
     // Only render our own heading block if the author asked for one; on the
     // homepage the existing "Voices of Support" heading already sits above us.
+    // When we do render it, it mirrors the homepage structure exactly:
+    // pill badge → heading → intro.
     if (heading || intro) {
       headHtml =
         '<div class="glr-head">' +
+        '<span class="glr-pill">' +
+          '<span class="glr-pill-ic"><img src="' + PILL_ICON + '" alt="" aria-hidden="true" loading="lazy"></span>' +
+          '<span class="glr-pill-tx">' + esc(pill) + "</span>" +
+        "</span>" +
         (heading ? '<h2 class="glr-heading">' + esc(heading) + "</h2>" : "") +
         (intro ? '<p class="glr-intro">' + esc(intro) + "</p>" : "") +
         "</div>";
@@ -501,16 +698,29 @@
   // ("ready" | "hidden"), __glrLoading (bool).
 
   function loadMount(mount) {
-    var category = mount.getAttribute("data-category") || "";
+    var conf = mountConfig(mount);
     var limit = mount.getAttribute("data-limit") || "";
+    var key = cacheKey(conf.categories);
+
+    // Reuse cached rows if a previous mount for the same categories already
+    // fetched them (e.g. an injected mount re-created after a hydration wipe).
+    if (DATA_CACHE[key]) {
+      mount.__glrData = DATA_CACHE[key];
+      mount.__glrState = "ready";
+      mount.__glrLoading = false;
+      ensureMount(mount);
+      return;
+    }
+
     mount.__glrLoading = true;
-    fetchReviews(category, limit)
+    getReviewsBySlug(conf.categories, limit)
       .then(function (rows) {
         if (Array.isArray(rows) && rows.length) {
+          DATA_CACHE[key] = rows;
           mount.__glrData = rows;
           mount.__glrState = "ready";
-        } else if (!category) {
-          mount.__glrData = FALLBACK_REVIEWS; // unfiltered: show bundled fallback
+        } else if (conf.fallback) {
+          mount.__glrData = FALLBACK_REVIEWS; // homepage: show bundled fallback
           mount.__glrState = "ready";
         } else {
           mount.__glrState = "hidden"; // category with no published reviews yet
@@ -518,7 +728,7 @@
       })
       .catch(function (err) {
         console.error("[reviews] load failed:", err);
-        if (!category) {
+        if (conf.fallback) {
           mount.__glrData = FALLBACK_REVIEWS;
           mount.__glrState = "ready";
         } else {
@@ -558,9 +768,13 @@
   }
 
   function processMounts() {
+    ensurePageMount(); // inject the mount on create:true pages if missing
     var mounts = document.querySelectorAll("[data-gl-reviews]");
     Array.prototype.forEach.call(mounts, ensureMount);
   }
+
+  // Expose the reusable fetch helper for any ad-hoc use elsewhere on the site.
+  window.glReviews = window.glReviews || { getReviewsBySlug: getReviewsBySlug };
 
   function start() {
     injectStyles();
