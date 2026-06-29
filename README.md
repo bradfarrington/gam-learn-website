@@ -12,7 +12,8 @@ the original Framer/`motion` JavaScript bundles are included and run locally.
 
 | Path | Description |
 |------|-------------|
-| `index.html`, `*.html`, `blog/*.html` | The 45 rendered pages (home, about, services, blog index + 26 posts, forms, policies). Clean URLs — `/about-us`, `/blog/<slug>`. |
+| `index.html`, `*.html` | The rendered pages (home, about, services, blog index, forms, policies). Clean URLs — e.g. `/about-us`. |
+| `blog/_post-template.html` | Shared, **DB-driven** template for every blog post. `/blog/<slug>` resolves here (via the `vercel.json` rewrite) and `_assets/blog-posts.js` fills the title/hero/body live from the Supabase `blog_posts` table. Posts are managed entirely in the CRM — there are no per-post HTML files. |
 | `_assets/fu/sites/…` | The JavaScript module bundle graph (React + motion) that powers layout & animations. |
 | `_assets/fu/images/…` | All images & SVGs. |
 | `_assets/fu/assets/…`, `_assets/fu/gstatic/…` | Self-hosted fonts (woff2). |

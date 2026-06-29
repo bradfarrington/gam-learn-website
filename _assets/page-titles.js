@@ -22,46 +22,29 @@
   "/professional-training": "Professional Training | GamLEARN",
   "/research": "Research | GamLEARN",
   "/safeguarding": "Safeguarding | GamLEARN",
-  "/understanding-gambling-related-harm-and-its-links-to-crime": "Understanding Gambling-Related Harm & Its Links to Crime | GamLEARN",
-  "/blog/bet-on-a-helping-hand-the-power-of-peer-support-for-gambling-victims": "Bet on a Helping Hand: The Power of Peer Support for Gambling Victims | GamLEARN",
-  "/blog/breaking-free-from-gambling-harm-free-gambling-help-services-that-work": "Breaking Free from Gambling Harm: Free Gambling Help Services That Work | GamLEARN",
-  "/blog/community-based-gambling-help-bridging-recovery-through-local-linkages": "Community-Based Gambling Help: Bridging Recovery Through Local Linkages | GamLEARN",
-  "/blog/comprehensive-legal-support-for-gambling-habits-a-lifeline-for-individual-s-rights": "Comprehensive Legal Support for Gambling Habits: A Lifeline for Individuals' Rights | GamLEARN",
-  "/blog/culture-and-gambling-how-cultural-norms-shape-gambling-habits": "Culture and Gambling: How Cultural Norms Shape Gambling Habits | GamLEARN",
-  "/blog/facing-a-theft-case-see-how-gamlearn-makes-a-difference": "Facing a Theft Case? See How GamLEARN Makes a Difference | GamLEARN",
-  "/blog/football-s-gambling-ad-surge-a-call-for-regulation": "Football's Gambling Ad Surge: A Call for Regulation | GamLEARN",
-  "/blog/freeing-the-next-generation-prevention-strategies-for-teen-gambling": "Freeing the Next Generation: Prevention Strategies for Teen Gambling | GamLEARN",
-  "/blog/gambling-problem-101-warning-signs-impacts-and-ways-to-recover": "Gambling Problem 101: Warning Signs, Impacts, and Ways to Recover | GamLEARN",
-  "/blog/gambling-related-harm-supporting-families-and-loved-ones-in-crisis": "Gambling-Related Harm: Supporting Families and Loved Ones in Crisis | GamLEARN",
-  "/blog/gamlearn-cares-addressing-youth-gambling-urgency": "GamLEARN Cares: Addressing Youth Gambling Urgency | GamLEARN",
-  "/blog/healing-together-new-life-with-group-sessions-for-gambling-recovery": "Healing Together: New Life with Group Sessions for Gambling Recovery | GamLEARN",
-  "/blog/how-betting-giants-exploit-vulnerable-gamblers-and-what-needs-to-change": "How Betting Giants Exploit Vulnerable Gamblers—And What Needs to Change | GamLEARN",
-  "/blog/illusion-of-joy-how-gambling-impacts-individual-happiness": "Illusion of Joy: How Gambling Impacts Individual Happiness | GamLEARN",
-  "/blog/paula-s-skydiving-to-support-gamlearn": "Paula's Skydiving to Support GamLEARN | GamLEARN",
-  "/blog/protecting-the-children-from-gambling-harms-a-call-to-action": "Protecting The Children from Gambling Harms: A Call to Action | GamLEARN",
-  "/blog/steps-on-recovery-how-to-get-help-for-gambling-problems-in-the-uk": "Steps on Recovery: How to Get Help for Gambling Problems in the UK | GamLEARN",
-  "/blog/suicide-and-gambling-a-growing-mental-health-emergency": "Suicide and Gambling: A Growing Mental Health Emergency | GamLEARN",
-  "/blog/the-gambling-stigma-cycle-why-it-prevents-recovery": "The Gambling-Stigma Cycle: Why It Prevents Recovery | GamLEARN",
-  "/blog/the-hidden-toll-when-gambling-leads-to-crime": "The Hidden Toll: When Gambling Leads to Crime | GamLEARN",
-  "/blog/the-psychology-of-gambling-why-the-brain-loves-to-bet": "The Psychology of Gambling: Why the Brain Loves to Bet | GamLEARN",
-  "/blog/tom-hudd-takes-on-the-brighton-marathon-to-support-gamlearn": "Tom Hudd Takes on the Brighton Marathon to Support GamLEARN | GamLEARN",
-  "/blog/what-fuels-problem-gambling-beliefs-attitudes-myths-debunked": "What Fuels Problem Gambling? Beliefs, Attitudes, & Myths Debunked | GamLEARN",
-  "/blog/when-coping-goes-wrong-stress-and-gambling-in-adolescents": "When Coping Goes Wrong: Stress and Gambling in Adolescents | GamLEARN",
-  "/blog/you-can-regain-control-of-your-life-7-practical-steps-in-overcoming-gambling-habits": "You Can Regain Control of Your Life: 7 Practical Steps in Overcoming Gambling Habits | GamLEARN",
-  "/blog/youth-in-crisis-gambling-poverty-and-mental-health-among-young-people": "Youth in Crisis: Gambling, Poverty, and Mental Health Among Young People | GamLEARN"
+  "/understanding-gambling-related-harm-and-its-links-to-crime": "Understanding Gambling-Related Harm & Its Links to Crime | GamLEARN"
+  // Individual blog posts (/blog/<slug>) are intentionally absent: their titles
+  // are set live from Supabase by blog-posts.js (see isPost() below).
 };
   function key() {
     var p = location.pathname.replace(/\/+$/, "");
     p = p.replace(/\/index$/, "").replace(/\.html$/, "");
     return p === "" ? "/" : p;
   }
+  // Individual blog posts (/blog/<slug>) are DB-driven: their title is set live
+  // from Supabase by blog-posts.js, including brand-new posts that have no entry
+  // here. Don't enforce a static title on those pages or we'd fight that script.
+  function isPost() { return /^\/blog\/[^/]+$/.test(key()); }
   var INITIAL = document.title;
   function desired() {
     var k = key();
     return Object.prototype.hasOwnProperty.call(TITLES, k) ? TITLES[k] : INITIAL;
   }
   var want = desired();
-  function enforce() { if (document.title !== want) document.title = want; }
+  function enforce() {
+    if (isPost()) return;            // post pages own their title (blog-posts.js)
+    if (document.title !== want) document.title = want;
+  }
   function onNav() { want = desired(); enforce(); }
   ["pushState", "replaceState"].forEach(function (m) {
     var orig = history[m];

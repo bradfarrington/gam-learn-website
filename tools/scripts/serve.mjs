@@ -30,6 +30,12 @@ async function tryFiles(pathname) {
     const fp = join(ROOT, c);
     try { const s = await stat(fp); if (s.isFile()) return fp; } catch {}
   }
+  // Mirror the vercel.json rewrite: an unknown /blog/<slug> (a CRM-only post
+  // with no static file) falls through to the shared, DB-driven post template.
+  if (/^\/blog\/[^/]+$/.test(pathname)) {
+    const tmpl = join(ROOT, 'blog/_post-template.html');
+    try { const s = await stat(tmpl); if (s.isFile()) return tmpl; } catch {}
+  }
   return null;
 }
 

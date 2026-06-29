@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /blog/_post-template
 
 Sitemap: https://gamlearn.org.uk/sitemap.xml

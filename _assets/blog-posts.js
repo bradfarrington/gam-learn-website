@@ -24,14 +24,17 @@
   var SUPABASE_ANON_KEY = "sb_publishable_NpTvep2Jycfilu33SfHR2g_DCixDOod";
   var REST = SUPABASE_URL + "/rest/v1/blog_posts";
 
-  // Which view are we on? Only act on the blog index and the homepage; inert
-  // everywhere else (the file is loaded site-wide).
+  // Which view are we on? Act on the blog index, the homepage, and individual
+  // post pages (/blog/<slug>); inert everywhere else (loaded site-wide).
   var path = location.pathname.replace(/index\.html?$/, "").replace(/\/+$/, "") || "/";
   var IS_LIST = path === "/blog";
   var IS_HOME = path === "/";
-  if (!IS_LIST && !IS_HOME) return;
+  var postMatch = path.match(/^\/blog\/([^/?#]+)$/);
+  var IS_POST = !!postMatch;
+  var POST_SLUG = postMatch ? decodeURIComponent(postMatch[1]) : "";
+  if (!IS_LIST && !IS_HOME && !IS_POST) return;
 
-  var HOME_LIMIT = 4; // homepage shows the latest N, then a "View all" button
+  var HOME_LIMIT = 6; // homepage shows the latest N, then a "View all" button
   var PAGE = 6;       // /blog shows 6 at a time, then a "Load more" button
   var _shown = PAGE;  // how many posts are currently revealed on /blog
 
@@ -148,8 +151,13 @@
       img.setAttribute("alt", post.image_alt || post.title || "");
     });
 
-    // Card links -> the post page.
-    Array.prototype.forEach.call(node.querySelectorAll("a[href]"), function (a) {
+    // Card links -> the post page. Include `node` itself: on some layouts (the
+    // homepage grid) the per-card unit *is* the <a>, and querySelectorAll never
+    // returns the node it's called on — so without this the card's own href keeps
+    // the template's slug and every card points at the first post.
+    var links = Array.prototype.slice.call(node.querySelectorAll("a[href]"));
+    if (node.tagName === "A" && node.hasAttribute("href")) links.push(node);
+    links.forEach(function (a) {
       var h = a.getAttribute("href") || "";
       if (/\/blog\//.test(h)) a.setAttribute("href", "/blog/" + post.slug);
     });
@@ -220,6 +228,136 @@
         chip.style.display = "none";
       }
     });
+  }
+
+  // --- Single post (/blog/<slug>) -------------------------------------------
+  // The post pages are Framer-hydrated CMS detail pages: Framer re-renders the
+  // article from the *frozen* local CMS bundle after load. To make them truly
+  // DB-driven we fetch the live row by slug and re-assert title / hero image /
+  // body straight from Supabase, re-applying on every hydration pass (same
+  // resilience pattern as the card grid and reviews.js).
+  var _post;            // cached row for this slug (null = looked-up, missing)
+  var _postLoading = false;
+
+  function fetchPost(slug) {
+    var select = "slug,title,excerpt,content_html,image_url,image_alt,categories,published_at";
+    var url = REST + "?select=" + encodeURIComponent(select) +
+              "&is_published=eq.true&slug=eq." + encodeURIComponent(slug) +
+              "&limit=1";
+    return fetch(url, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + SUPABASE_ANON_KEY,
+        Accept: "application/json",
+      },
+    }).then(function (r) {
+      if (!r.ok) throw new Error("blog_posts HTTP " + r.status);
+      return r.json();
+    }).then(function (rows) { return (rows && rows[0]) || null; });
+  }
+
+  // The DB stores body as plain rich-text HTML (<p>/<h2>/<h3>/<ul>/<a>…) with no
+  // Framer classes. Tag each element with the site's global style presets so the
+  // injected article matches the original typography exactly.
+  var PRESET = {
+    P: "glearn-text glearn-styles-preset-1rhqrrz",
+    H1: "glearn-text glearn-styles-preset-uu074d",
+    H2: "glearn-text glearn-styles-preset-47g0p4",
+    H3: "glearn-text glearn-styles-preset-cy3ug9",
+    H4: "glearn-text glearn-styles-preset-cy3ug9",
+    UL: "glearn-text",
+    OL: "glearn-text",
+    LI: "glearn-text",
+    A: "glearn-text glearn-styles-preset-vznyu1",
+  };
+  function styleRichText(html) {
+    var doc = document.implementation.createHTMLDocument("");
+    doc.body.innerHTML = html || "";
+    Object.keys(PRESET).forEach(function (tag) {
+      Array.prototype.forEach.call(doc.body.getElementsByTagName(tag), function (el) {
+        // Don't fight an explicit class already present on a nested preset node.
+        if (!el.className) el.className = PRESET[tag];
+      });
+    });
+    return doc.body.innerHTML;
+  }
+
+  // The article body is, by a wide margin, the largest rich-text block on the
+  // page (everything else — card excerpts, footer — is tiny). Returns every
+  // RichTextContainer whose text is "large", to cover all responsive variants.
+  function bodyContainers() {
+    var all = Array.prototype.slice.call(
+      document.querySelectorAll('[data-glearn-component-type="RichTextContainer"]')
+    );
+    if (!all.length) return [];
+    var max = 0;
+    all.forEach(function (el) {
+      var n = (el.textContent || "").trim().length;
+      if (n > max) max = n;
+    });
+    if (max < 400) return []; // body not rendered yet
+    return all.filter(function (el) {
+      if (el.getAttribute("data-gl-post") === POST_SLUG) return true; // already ours
+      return (el.textContent || "").trim().length >= Math.max(400, max * 0.5);
+    });
+  }
+
+  function setMeta(selector, attr, value) {
+    var el = document.head && document.head.querySelector(selector);
+    if (el && value != null) el.setAttribute(attr, value);
+  }
+
+  function paintPost() {
+    if (!_post) return;
+    var styled = null; // lazily build once
+
+    // Title — the page has a single <h1>; keep its element/styling, swap text.
+    var h1 = document.querySelector("#main h1, h1");
+    if (h1 && h1.textContent.trim() !== _post.title) {
+      var span = h1.querySelector("span") || h1;
+      span.textContent = _post.title;
+    }
+
+    // Hero image — every responsive <img> inside the Blog Image wrapper.
+    if (_post.image_url) {
+      Array.prototype.forEach.call(
+        document.querySelectorAll('[data-glearn-name="Blog Image"] img'),
+        function (img) {
+          if (img.getAttribute("src") !== _post.image_url) {
+            img.setAttribute("src", _post.image_url);
+            img.removeAttribute("srcset");
+            img.removeAttribute("sizes");
+          }
+          img.setAttribute("alt", _post.image_alt || _post.title || "");
+        }
+      );
+    }
+
+    // Body — replace the dominant rich-text block(s) with the DB content.
+    var bodies = bodyContainers();
+    bodies.forEach(function (el) {
+      if (el.getAttribute("data-gl-post") === POST_SLUG) return; // unchanged
+      if (styled == null) styled = styleRichText(_post.content_html);
+      el.innerHTML = styled;
+      el.setAttribute("data-gl-post", POST_SLUG);
+    });
+
+    // Head metadata (title is owned here now — see page-titles.js).
+    var title = _post.title + " | GamLEARN";
+    if (document.title !== title) document.title = title;
+    if (_post.excerpt) setMeta('meta[name="description"]', "content", _post.excerpt);
+    setMeta('meta[property="og:title"]', "content", title);
+    if (_post.excerpt) setMeta('meta[property="og:description"]', "content", _post.excerpt);
+    if (_post.image_url) setMeta('meta[property="og:image"]', "content", _post.image_url);
+  }
+
+  function loadPost() {
+    if (_postLoading || _post !== undefined) { paintPost(); return; }
+    _postLoading = true;
+    fetchPost(POST_SLUG)
+      .then(function (row) { _post = row; })
+      .catch(function (err) { console.error("[blog] post load failed:", err); _post = _post || null; })
+      .then(function () { _postLoading = false; paintPost(); });
   }
 
   // --- Buttons ---------------------------------------------------------------
@@ -389,20 +527,24 @@
       .then(function () { _loading = false; paint(); });
   }
 
-  function start() {
-    load();
+  // Dispatch to the right renderer for the current view.
+  function loadAll() { if (IS_POST) loadPost(); else load(); }
+  function paintAll() { if (IS_POST) paintPost(); else paint(); }
 
-    // Re-assert after each Framer hydration pass that recreates the grid.
+  function start() {
+    loadAll();
+
+    // Re-assert after each Framer hydration pass that recreates the DOM.
     var scheduled = false;
     var observer = new MutationObserver(function () {
       if (scheduled) return;
       scheduled = true;
-      requestAnimationFrame(function () { scheduled = false; paint(); });
+      requestAnimationFrame(function () { scheduled = false; paintAll(); });
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
 
-    [300, 1200, 3000, 6000].forEach(function (ms) { setTimeout(paint, ms); });
-    window.addEventListener("load", paint);
+    [300, 1200, 3000, 6000].forEach(function (ms) { setTimeout(paintAll, ms); });
+    window.addEventListener("load", paintAll);
   }
 
   if (document.readyState === "loading") {
